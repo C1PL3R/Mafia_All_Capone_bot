@@ -1,0 +1,21 @@
+import psycopg2
+from config_db import *
+
+with psycopg2.connect(dbname=db_name, user=username, host=host, password=password) as conn:
+    cursor = conn.cursor()
+
+    cursor.execute("""CREATE TABLE IF NOT EXISTS users(
+                   id BIGINT, 
+                   tg_name VARCHAR, 
+                   link VARCHAR,
+                   role TEXT,
+                   killed INT DEFAULT 0,
+                   cured INT DEFAULT 0,
+                   money INT DEFAULT 0
+    )""")
+
+    # new_column_name = 'money'
+    # new_column_data_type = 'INTEGER'
+    # alter_query = f'ALTER TABLE users ADD COLUMN {new_column_name} {new_column_data_type} DEFAULT 0;'
+
+    # cursor.execute(alter_query)
