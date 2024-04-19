@@ -1,5 +1,5 @@
 import psycopg2
-from config_db import *
+from .config_db import *
 
 with psycopg2.connect(dbname=db_name, user=username, host=host, password=password) as conn:
     cursor = conn.cursor()
