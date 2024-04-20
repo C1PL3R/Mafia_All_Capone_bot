@@ -92,9 +92,7 @@ async def night_def(message: Message, bot: Bot):
         elif role == "Мирний житель":
             await peaceful_resident(message=message, bot=bot, id=id)
     
-    if day == 2:
-        await day_def(message=message)
-        day = 0
+    
 
 
 async def doctor(message: Message, bot: Bot, id, day=day):
@@ -328,7 +326,19 @@ async def start_cmd(message: Message, bot: Bot, time_game=time_game, members_lis
                     peaceful_list.append(id)
                     patients_list.append(id)
                     await bot.send_message(chat_id=id, text="Цієї гри ти - Мирний житель!\nРоби все, щоб знищити підступне угрупування Аль Капоне.")
-                
+            
+            game = True
+            while game:
+                if night is True:
+                    await night_def()
+                    if day == 3:
+                        await day_def()
+                        day = 0
+                    else:
+                        pass
+                else:
+                    pass
+
     else:
         await message.answer(text="Ця команда доступна у групах!")
 
