@@ -14,8 +14,7 @@ with psycopg2.connect(dbname=db_name, user=username, host=host, password=passwor
                    money INT DEFAULT 0
     )""")
 
-    # new_column_name = 'money'
+    # new_column_name = 'is_premium'
     # new_column_data_type = 'INTEGER'
-    # alter_query = f'ALTER TABLE users ADD COLUMN {new_column_name} {new_column_data_type} DEFAULT 0;'
 
-    # cursor.execute(alter_query)
+    # cursor.execute(f"ALTER TABLE users ADD COLUMN {new_column_name} {new_column_data_type} DEFAULT 0")
