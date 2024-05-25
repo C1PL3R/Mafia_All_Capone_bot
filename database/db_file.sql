@@ -1,1 +1,1 @@
-SELECT * FROM users
+SELECT * FROM admin_panel

@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from database.database import *
 
 router_start = Router()
@@ -30,4 +30,12 @@ async def add_user_to_db(message: Message):
 async def start_cmd(message: Message):
     await add_user_to_db(message=message)
     await message.answer("Вітаю в боті чату: 🏴Галицький All Capone//Mafia🏴\nДля гри у групах треба такі права адміністратора:\n• Видалення повідомлення\n• Прикріплення повідомлення", reply_markup=keyboard)
+
+
+@router_start.message(Command("id"))
+async def id_cmd(message: Message):
+    if message.chat.type == "private":
+        await message.answer(f"Ваше id: <code>{message.chat.id}</code>", parse_mode="html")
+    if message.chat.type in ["supergroup", "group"]:
+        await message.answer(f"Id вашого чату: <code>{message.chat.id}</code>", parse_mode="html")
 

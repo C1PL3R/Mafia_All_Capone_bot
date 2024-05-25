@@ -116,8 +116,6 @@ async def voting(message: Message, bot: Bot):
 
             await callback.message.edit_text(f"Кого будемо вішати?\nТи вибрав <a href='tg://user?id={id}'>{name}</a>", parse_mode="html")
 
-            
-
 
     
 

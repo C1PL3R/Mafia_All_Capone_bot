@@ -14,6 +14,13 @@ with psycopg2.connect(dbname=db_name, user=username, host=host, password=passwor
                    money INT DEFAULT 0
     )""")
 
+    cursor.execute("""CREATE TABLE IF NOT EXISTS admin_panel(
+                   group_id BIGINT,
+                   doctor VARCHAR DEFAULT "Лікар",
+                   all_capone VARCHAR DEFAULT "Аль Капоне",
+                   peaceful_resident VARCHAR DEFAULT "Мирний Житель"
+    )""")
+
     # new_column_name = 'is_premium'
     # new_column_data_type = 'INTEGER'
 
