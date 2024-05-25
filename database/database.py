@@ -1,5 +1,5 @@
 import psycopg2
-from .config_db import *
+from config_db import *
 
 with psycopg2.connect(dbname=db_name, user=username, host=host, password=password) as conn:
     cursor = conn.cursor()
@@ -15,10 +15,14 @@ with psycopg2.connect(dbname=db_name, user=username, host=host, password=passwor
     )""")
 
     cursor.execute("""CREATE TABLE IF NOT EXISTS admin_panel(
+                   creator_id BIGINT,
                    group_id BIGINT,
-                   doctor VARCHAR DEFAULT "Лікар",
-                   all_capone VARCHAR DEFAULT "Аль Капоне",
-                   peaceful_resident VARCHAR DEFAULT "Мирний Житель"
+                   doctor VARCHAR DEFAULT 'Лікар',
+                   doctor_text VARCHAR, 
+                   all_capone VARCHAR DEFAULT 'Аль Капоне',
+                   all_capone_text VARCHAR, 
+                   peaceful_resident VARCHAR DEFAULT 'Мирний Житель',
+                   peaceful_resident_text VARCHAR
     )""")
 
     # new_column_name = 'is_premium'
