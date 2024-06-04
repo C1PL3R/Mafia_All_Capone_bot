@@ -1,5 +1,5 @@
 import psycopg2
-from config_db import *
+from .config_db import *
 
 with psycopg2.connect(dbname=db_name, user=username, host=host, password=password) as conn:
     cursor = conn.cursor()
@@ -18,11 +18,11 @@ with psycopg2.connect(dbname=db_name, user=username, host=host, password=passwor
                    creator_id BIGINT,
                    group_id BIGINT,
                    doctor VARCHAR DEFAULT 'Лікар',
-                   doctor_text VARCHAR, 
+                   doctor_text VARCHAR DEFAULT 'Цієї гри ти - Лікар!\nРоби все, щоб врятувати якомога більше мирних людей.', 
                    all_capone VARCHAR DEFAULT 'Аль Капоне',
-                   all_capone_text VARCHAR, 
-                   peaceful_resident VARCHAR DEFAULT 'Мирний Житель',
-                   peaceful_resident_text VARCHAR
+                   all_capone_text VARCHAR DEFAULT 'Цієї гри ти - Аль Капоне!\nРоби все, щоб твоя сім`я отримала перемогу, над цими нікчемними мирними жителями.', 
+                   civilian VARCHAR DEFAULT 'Мирний Житель',
+                   civilian_text VARCHAR DEFAULT 'Цієї гри ти - Мирний житель!\nРоби все, щоб знищити підступне угрупування Аль Капоне.'
     )""")
 
     # new_column_name = 'is_premium'

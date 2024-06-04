@@ -16,7 +16,7 @@ from config_bot import TOKEN
 
 
 async def main():
-    bot = Bot(token=TOKEN, parse_mode="HTML")
+    bot = Bot(token=TOKEN)
     dp = Dispatcher()
     
     dp.include_routers(router_play, router_start, router_pay, router_construct_event, router_admin_panel)
