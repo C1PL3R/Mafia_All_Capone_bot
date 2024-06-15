@@ -13,17 +13,17 @@ keyboard = InlineKeyboardMarkup(inline_keyboard=[
 async def add_user_to_db(message: Message):
     username = message.from_user.username
     telegram_id = message.from_user.id
-    user_full_telegram = message.from_user.full_name
+    username_telegram = message.from_user.first_name
     cursor.execute("SELECT * FROM users WHERE id = %s", (telegram_id,))
     record = cursor.fetchone()
 
     if message.chat.type == "private" or message.chat.type == "supergroup" or message.chat.type == "group":
         if record is None:
-                cursor.execute("INSERT INTO users (id, tg_name, link) VALUES (%s, %s, %s)", (telegram_id, user_full_telegram, username))
+                cursor.execute("INSERT INTO users (id, tg_name, link) VALUES (%s, %s, %s)", (telegram_id, username_telegram, username))
                 conn.commit()
         else:
-            if record[1] != user_full_telegram or record[1] != username:
-                cursor.execute("UPDATE users SET tg_name = %s, link = %s WHERE id = %s", (user_full_telegram, username, telegram_id,))
+            if record[1] != username_telegram or record[1] != username:
+                cursor.execute("UPDATE users SET tg_name = %s, link = %s WHERE id = %s", (username_telegram, username, telegram_id,))
                 conn.commit()
 
 @router_start.message(CommandStart())

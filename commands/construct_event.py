@@ -1,6 +1,7 @@
 import asyncio
 from aiogram import Bot, Router, F
 from aiogram.filters import Command
+from aiogram.enums import ChatMemberStatus
 from aiogram.types import Message, ChatMemberOwner, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramBadRequest
@@ -16,7 +17,8 @@ is_input_description_of_role = False
 creator_id = 0
 chat_id = 0
 name_of_chats = []
-
+name_of_add_chats = []
+group_id = 0
 
 @router_construct_event.message(Command("construct_event"))
 async def construct_event_handler(message: Message, bot: Bot):
@@ -43,16 +45,16 @@ async def construct_event_handler(message: Message, bot: Bot):
             await message.answer("Вибери чат де будеш будувати івент", reply_markup=list_of_chats.as_markup())
 
         else:
-            global is_input_chat_id, is_input_creator_id
+            global is_input_chat_id
 
-            await message.answer("Ти не зареєстрований як власник чату. Розпочнімо реєстрування. Надішли своє id (Своє id можна дізнатися надіславши у приват бота команду /id)", parse_mode="html")
+            await message.answer("Ти не зареєстрований як власник чату. Розпочнімо реєстрування.\nНадішли айді групи яку <u><b>ти створив</b></u> адже створювати івент може <u><b>тільки людина яка створила групу</b></u> 🙂\nЩоб дізнатися id групи надішли команду /id у групу яку <u><b>ти створив</b></u>", parse_mode="html")
             
-            is_input_creator_id = True
-            is_input_chat_id = False
+            is_input_chat_id = True
         
         for id, title in name_of_chats:
             @router_construct_event.callback_query(F.data == title)
             async def titleChatCallback(callback: CallbackQuery):
+                global group_id
                 doctor_button = InlineKeyboardButton(text="Лікар", callback_data="doctor")
                 all_capone_button = InlineKeyboardButton(text="Аль Капоне", callback_data="all_capone")
                 civilian_button = InlineKeyboardButton(text="Мирний житель", callback_data="civilian")
@@ -66,25 +68,8 @@ async def construct_event_handler(message: Message, bot: Bot):
                     [add_group_button],
                     [delete_group_button]
                 ])
-
+                group_id = id
                 await callback.message.edit_text("⬇️ Вибери яку роль ти хочеш змінити ⬇️", reply_markup=roles_buttons)
-
-
-
-@router_construct_event.message(lambda message: is_input_creator_id)
-async def is_input_creator_id_handler(message: Message, bot: Bot):
-    if message.chat.type == "private":
-        try:
-            global is_input_chat_id, is_input_creator_id, chat_id, creator_id
-            creator_id = int(message.text)
-
-            await message.answer(text="Дякую ❤️\nТепер надішли айді групи яку <u><b>ти створив</b></u> адже створювати івент може <u><b>тільки людина яка створила групу</b></u> 🙂\nЩоб дізнатися id групи надішли команду /id у групу яку <u><b>ти створив</b></u>", parse_mode="html")
-
-            is_input_creator_id = False
-            is_input_chat_id = True
-
-        except ValueError:
-            await message.answer(text="Надішли тільки своє id без букв, самі цифри")
 
 
 @router_construct_event.message(lambda message: is_input_chat_id)
@@ -98,11 +83,12 @@ async def is_input_chat_id_handler(message: Message, bot: Bot):
                 if chat_id >= 0:
                     await message.answer("Відправ айді групи (воно завжди з мінусом)")
                 elif chat_id < 0:
-                    administrators = await bot.get_chat_administrators(chat_id=chat_id)
-                    you_is_creator = any(isinstance(admin, ChatMemberOwner) and admin.user.id == creator_id for admin in administrators)
+                    chat_member = await bot.get_chat_member(chat_id, message.from_user.id)
 
-                    if you_is_creator:
-                        cursor.execute("INSERT INTO admin_panel (creator_id, group_id) VALUES (%s, %s)", (creator_id, chat_id))
+                    status = chat_member.status
+
+                    if status == ChatMemberStatus.CREATOR:
+                        cursor.execute("INSERT INTO admin_panel (creator_id, group_id) VALUES (%s, %s)", (message.from_user.id, chat_id))
                         conn.commit()
 
                         chat = await bot.get_chat(chat_id=chat_id)
@@ -122,10 +108,10 @@ async def is_input_chat_id_handler(message: Message, bot: Bot):
 
 
 async def change_name_of_role(callback: CallbackQuery, name_of_role, role_in_db, chat_id):
-    cursor.execute(f"SELECT {role_in_db} FROM admin_panel WHERE creator_id = %s, group_id = %s", (callback.from_user.id, chat_id))
+    cursor.execute(f"SELECT {role_in_db} FROM admin_panel WHERE creator_id = %s AND group_id = %s", (callback.from_user.id, chat_id))
     role = cursor.fetchone()
 
-    cursor.execute(f"SELECT {role_in_db}_text FROM admin_panel WHERE creator_id = %s, group_id = %s", (callback.from_user.id,))
+    cursor.execute(f"SELECT {role_in_db}_text FROM admin_panel WHERE creator_id = %s AND group_id = %s", (callback.from_user.id, chat_id))
     text_of_role = cursor.fetchone()
 
     go_to_main_menu_button = InlineKeyboardButton(text="⬅️ Назад ⬅️", callback_data="go_to_main_menu")
@@ -154,6 +140,7 @@ async def change_name_of_role(callback: CallbackQuery, name_of_role, role_in_db,
 
         is_input_name_of_role = True
 
+
     @router_construct_event.callback_query(F.data == "description_of_role")
     async def name_of_role_callback_query(callback: CallbackQuery):
         global is_input_description_of_role
@@ -170,7 +157,7 @@ async def change_name_of_role(callback: CallbackQuery, name_of_role, role_in_db,
     @router_construct_event.message(lambda message: is_input_name_of_role)
     async def is_input_name_of_role_cmd(message: Message):
         global is_input_name_of_role
-        cursor.execute(f"UPDATE admin_panel SET {role_in_db} = %s WHERE creator_id = %s, group_id = %s", (message.text, message.from_user.id, chat_id))
+        cursor.execute(f"UPDATE admin_panel SET {role_in_db} = %s WHERE creator_id = %s AND group_id = %s", (message.text, message.from_user.id, chat_id))
         conn.commit()
 
         success_message = await message.answer(f"Назву ролі «{name_of_role}» змінено на: <u><b>{message.text}</b></u>", parse_mode="html")
@@ -185,7 +172,7 @@ async def change_name_of_role(callback: CallbackQuery, name_of_role, role_in_db,
     @router_construct_event.message(lambda message: is_input_description_of_role)
     async def is_input_name_of_role_cmd(message: Message):
         global is_input_description_of_role
-        cursor.execute(f"UPDATE admin_panel SET {role_in_db}_text = %s WHERE creator_id = %s, group_id = %s", (message.text, message.from_user.id, chat_id))
+        cursor.execute(f"UPDATE admin_panel SET {role_in_db}_text = %s WHERE creator_id = %s AND group_id = %s", (message.text, message.from_user.id, chat_id))
         conn.commit()
 
         success_message = await message.answer(f"Опис ролі «{name_of_role}» змінено на: <u><b>{message.text}</b></u>", parse_mode="html")
@@ -197,16 +184,15 @@ async def change_name_of_role(callback: CallbackQuery, name_of_role, role_in_db,
         await message.delete()
 
 
-
     @router_construct_event.callback_query(F.data == "go_to_role_menu")
     async def go_to_main_menu_callback_query(callback: CallbackQuery):
         global is_input_name_of_role
         is_input_name_of_role = False
 
-        cursor.execute(f"SELECT {role_in_db} FROM admin_panel WHERE creator_id = %s, group_id = %s", (callback.from_user.id, chat_id))
+        cursor.execute(f"SELECT {role_in_db} FROM admin_panel WHERE creator_id = %s AND group_id = %s", (callback.from_user.id, chat_id))
         role = cursor.fetchone()
 
-        cursor.execute(f"SELECT {role_in_db}_text FROM admin_panel WHERE creator_id = %s, group_id = %s", (callback.from_user.id, chat_id))
+        cursor.execute(f"SELECT {role_in_db}_text FROM admin_panel WHERE creator_id = %s AND group_id = %s", (callback.from_user.id, chat_id))
         text_of_role = cursor.fetchone()
 
         go_to_main_menu_button = InlineKeyboardButton(text="⬅️ Назад ⬅️", callback_data="go_to_main_menu")
@@ -226,17 +212,20 @@ async def change_name_of_role(callback: CallbackQuery, name_of_role, role_in_db,
 
 @router_construct_event.callback_query(F.data == "doctor")
 async def doctor_callback_query(callback: CallbackQuery):
-    await change_name_of_role(callback=callback, name_of_role="Лікар", role_in_db="doctor")
+    global group_id
+    await change_name_of_role(callback=callback, name_of_role="Лікар", role_in_db="doctor", chat_id=group_id)
 
 
 @router_construct_event.callback_query(F.data == "all_capone")
 async def doctor_callback_query(callback: CallbackQuery):
-    await change_name_of_role(callback=callback, name_of_role="Аль Капоне", role_in_db="all_capone")
+    global group_id
+    await change_name_of_role(callback=callback, name_of_role="Аль Капоне", role_in_db="all_capone", chat_id=group_id)
 
 
 @router_construct_event.callback_query(F.data == "civilian")
 async def doctor_callback_query(callback: CallbackQuery):
-    await change_name_of_role(callback=callback, name_of_role="Мирний Житель", role_in_db="civilian")
+    global group_id
+    await change_name_of_role(callback=callback, name_of_role="Мирний Житель", role_in_db="civilian", chat_id=group_id)
 
 
 @router_construct_event.callback_query(F.data == "go_to_main_menu")
@@ -279,11 +268,12 @@ async def IsInputAddChatId(message: Message, bot: Bot):
         if chat_id in group_ids:
             await message.answer("Це id групи вже є в базі, введіть інше")
         else:
-            administrators = await bot.get_chat_administrators(chat_id=chat_id)
-            you_is_creator = any(isinstance(admin, ChatMemberOwner) and admin.user.id == creator_id for admin in administrators)
+            chat_member = await bot.get_chat_member(chat_id, message.from_user.id)
 
-            if you_is_creator:
-                cursor.execute("INSERT INTO admin_panel (creator_id, group_id) VALUES (%s, %s)", (creator_id, chat_id))
+            status = chat_member.status
+
+            if status == ChatMemberStatus.CREATOR:
+                cursor.execute("INSERT INTO admin_panel (creator_id, group_id) VALUES (%s, %s)", (message.from_user.id, chat_id))
                 conn.commit()
 
                 chat = await bot.get_chat(chat_id=chat_id)
@@ -293,6 +283,7 @@ async def IsInputAddChatId(message: Message, bot: Bot):
                 is_input_add_chat_id = False
             else:
                 await message.answer("Ти не є власником групи!")
+                is_input_add_chat_id = False
 
     except ValueError:
         await message.answer("Напиши айді групи воно складається з цифр без букв")
@@ -313,33 +304,39 @@ async def delete_group(callback: CallbackQuery):
 
 @router_construct_event.callback_query(F.data == "yes")
 async def yes_callback(callback: CallbackQuery, bot: Bot):
-    global name_of_chats
+    name_of_add_chats = []
     cursor.execute("SELECT group_id FROM admin_panel WHERE creator_id = %s", (callback.from_user.id,))
-    group_ids = cursor.fetchall()
+    group_ids = cursor.fetchall()[0]
 
     list_of_chats = InlineKeyboardBuilder()
 
     for chat_id in group_ids:
-        chat = await bot.get_chat(chat_id=int(chat_id[0]))
+        print(group_ids)
+        chat = await bot.get_chat(chat_id=int(chat_id))
 
         list_of_chats.button(text=f"{chat.title}", callback_data=f"{chat.title}_delete")
-
-        name_of_chats.append((chat_id, chat.title))
         
         list_of_chats.adjust(1)
 
+        name_of_add_chats.append((chat_id, chat.title))
+
+    print("1:", name_of_add_chats)
+
     await callback.message.edit_text("Вибери чат який видалиш зі списку", reply_markup=list_of_chats.as_markup())
     
-    for id, title in name_of_chats:
+    for id, title in name_of_add_chats:
         @router_construct_event.callback_query(F.data == f"{title}_delete")
         async def delete_chat(callback: CallbackQuery):
-            global name_of_chats
+            global name_of_add_chats
+
+            print("2:", name_of_add_chats)
+
             cursor.execute("DELETE FROM admin_panel WHERE creator_id = %s AND group_id = %s", (callback.from_user.id, id))
             conn.commit()
 
             await callback.message.edit_text(f"Чат {title} видалено! Ви будь-коли зможете його додати")
 
-            name_of_chats.remove((id, title))
+            name_of_add_chats.remove((id, title))
 
 
 @router_construct_event.callback_query(F.data == "no")
@@ -350,17 +347,10 @@ async def no_callback(callback: CallbackQuery, bot: Bot):
     list_of_chats = InlineKeyboardBuilder()
 
     for chat_id in group_ids:
-        chat = await bot.get_chat(chat_id=chat_id)
+        chat = await bot.get_chat(chat_id=int(chat_id[0]))
 
         list_of_chats.button(text=f"{chat.title}", callback_data=chat.title)
-
-        name_of_chats.append((chat_id, chat.title))
         
         list_of_chats.adjust(1)
 
     await callback.message.edit_text("Вибери чат де будеш будувати івент", reply_markup=list_of_chats.as_markup())
-
-
-
-
-

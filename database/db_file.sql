@@ -1,1 +1,2 @@
-SELECT * FROM admin_panel
+--DELETE FROM users;
+SELECT * FROM users;

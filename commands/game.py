@@ -117,8 +117,6 @@ async def voting(message: Message, bot: Bot):
             await callback.message.edit_text(f"Кого будемо вішати?\nТи вибрав <a href='tg://user?id={id}'>{name}</a>", parse_mode="html")
 
 
-    
-
 async def day_def(message: Message):
     gif_path = "C:/Users/Hom/Desktop/Mafia_All_Capone_bot/Media/day.gif"
 
@@ -133,7 +131,6 @@ async def day_def(message: Message):
 
     await asyncio.sleep(60)
     await voting(message=message)
-
 
 
 async def night_def(message: Message, bot: Bot, action=action):
@@ -158,10 +155,6 @@ async def night_def(message: Message, bot: Bot, action=action):
     await asyncio.sleep(30)
     if action < 0:
         await day_def(message=message)
-
-    
-    
-    
 
 
 async def doctor(message: Message, bot: Bot, id, action=action):
@@ -301,19 +294,6 @@ async def all_capone(message: Message, bot: Bot, id, action=action, killed_text=
 
 
 
-@router_game.callback_query(F.data == "answer_1")
-async def yes_btn(callback: CallbackQuery, action=action):
-    global list_question
-    await callback.message.edit_text(text=f"{list_question[0]}\nТи обрав: {list_question[1]}")
-    action += 1
-    action=action
-
-@router_game.callback_query(F.data == "answer_2")
-async def yes_btn(callback: CallbackQuery, action=action):
-    global list_question
-    await callback.message.edit_text(text=f"{list_question[0]}\nТи обрав: {list_question[2]}")
-    action += 1
-    action=action
 
 
 
