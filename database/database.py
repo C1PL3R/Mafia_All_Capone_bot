@@ -25,7 +25,21 @@ with psycopg2.connect(dbname=db_name, user=username, host=host, password=passwor
                    civilian_text VARCHAR DEFAULT 'Цієї гри ти - Мирний житель!\nРоби все, щоб знищити підступне угрупування Аль Капоне.'
     )""")
 
-    # new_column_name = 'is_premium'
-    # new_column_data_type = 'INTEGER'
+    # list = [("Чи любиш ти пити каву зранку?", "Так", "Ні"), 
+    #         ("Чи вмієш ти готувати яєчню?", "Так", "Ні"), 
+    #         ("Ти віддаєш перевагу перегляду фільмів вдома, чи кінотеатрі?", "Вдома", "В кінотеатрі"),
+    #         ("Ти полюбляєш вечірні прогулянки?", "Так", "Ні"), 
+    #         ("Ти за паперові чи електронні книги?", "Паперові", "Електронні"), 
+    #         ("Ти слухаєш подкасти?", "Так", "Ні"), 
+    #         ("Ти маєш улюблену музичну групу, чи виконавців?", "Так", "Ні"),
+    #         ("Чи часто ти відвідуєш музеї/виставки?", "Так", "Ні"), 
+    #         ("У тебе є домашні улюбленці?", "Так", "Ні"), 
+    #         ("Любиш подорожі на велосипеді?", "Так", "Ні")]
 
-    # cursor.execute(f"ALTER TABLE users ADD COLUMN {new_column_name} {new_column_data_type} DEFAULT 0")
+    # i = 0
+    # for text, answer1, answer2 in list:
+    #     new_column_name = 'question_for_civilian_answer'
+    #     new_column_data_type = 'VARCHAR'
+    #     i += 1
+
+    #     cursor.execute(f"ALTER TABLE admin_panel ADD COLUMN {new_column_name}_{i} {new_column_data_type} DEFAULT '{text}'")
