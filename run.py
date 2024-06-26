@@ -10,15 +10,14 @@ from commands.construct_event import router_construct_event
 from database.database import *
 from config_bot import TOKEN
 
-play_command = PlayCommand()
-
 
 class TelegramBot:
     def __init__(self):
         self.bot = Bot(token=TOKEN)
         self.dp = Dispatcher()
+        self.play_command = PlayCommand()
 
-        self.dp.include_routers(play_command.router_play, router_start, router_construct_event)
+        self.dp.include_routers(self.play_command.router_play, router_start, router_construct_event,router_pay )
         self.command_list = [
             BotCommand(command="start", description="Запуск бота 🤖"),
             BotCommand(command="play", description="Почати гру 🎮"),

@@ -60,13 +60,15 @@ async def construct_event_handler(message: Message, bot: Bot):
                 civilian_button = InlineKeyboardButton(text="Мирний житель", callback_data="civilian")
                 add_group_button = InlineKeyboardButton(text="➕ Додати групу ➕", callback_data="add_group")
                 delete_group_button = InlineKeyboardButton(text="❌ Видалити групу ❌", callback_data="delete_group")
+                default_settings_button = InlineKeyboardButton(text="Скинути все!", callback_data="default")
 
                 roles_buttons = InlineKeyboardMarkup(inline_keyboard=[
                     [doctor_button],
                     [all_capone_button],
                     [civilian_button],
                     [add_group_button],
-                    [delete_group_button]
+                    [delete_group_button],
+                    [default_settings_button]
                 ])
                 group_id = id
                 await callback.message.edit_text("⬇️ Вибери яку роль ти хочеш змінити ⬇️", reply_markup=roles_buttons)
@@ -354,3 +356,27 @@ async def no_callback(callback: CallbackQuery, bot: Bot):
         list_of_chats.adjust(1)
 
     await callback.message.edit_text("Вибери чат де будеш будувати івент", reply_markup=list_of_chats.as_markup())
+
+
+@router_construct_event.callback_query(F.data == "default")
+async def default_settings(callback: CallbackQuery):
+    list = [("Чи любиш ти пити каву зранку?", "question_for_civilian_1", "Так", "Ні"), 
+            ("Чи вмієш ти готувати яєчню?", "question_for_civilian_2", "Так", "Ні"), 
+            ("Ти віддаєш перевагу перегляду фільмів вдома, чи кінотеатрі?", "question_for_civilian_3", "Вдома", "В кінотеатрі"),
+            ("Ти полюбляєш вечірні прогулянки?", "question_for_civilian_4", "Так", "Ні"), 
+            ("Ти за паперові чи електронні книги?", "question_for_civilian_5", "Паперові", "Електронні"), 
+            ("Ти слухаєш подкасти?", "question_for_civilian_6", "Так", "Ні"), 
+            ("Ти маєш улюблену музичну групу, чи виконавців?", "question_for_civilian_7", "Так", "Ні"),
+            ("Чи часто ти відвідуєш музеї/виставки?", "question_for_civilian_8", "Так", "Ні"), 
+            ("У тебе є домашні улюбленці?", "question_for_civilian_9", "Так", "Ні"), 
+            ("Любиш подорожі на велосипеді?", "question_for_civilian_10", "Так", "Ні"),
+            ("Лікар", "doctor"),
+            ("Цієї гри ти - Лікар!\nРоби все, щоб врятувати якомога більше мирних людей.", "doctor_text"),
+            ("Аль Капоне", "all_capone"),
+            ("Цієї гри ти - Аль Капоне!\nРоби все, щоб твоя сім`я отримала перемогу, над цими нікчемними мирними жителями.", "all_capone_text"),
+            ("Цієї гри ти - Мирний житель!\nРоби все, щоб знищити підступне угрупування Аль Капоне.", "civilian_text"),
+            ("Мирний Житель", "civilian")]
+
+    for text, column, answer1, answer2 in list:
+        cursor.execute(f"UPDATE admin_panel SET {column} = %s WHERE creator_id = %s AND group_id = %s", (text, callback.from_user.id, chat_id))
+        conn.commit()
