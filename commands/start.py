@@ -39,3 +39,8 @@ async def id_cmd(message: Message):
     if message.chat.type in ["supergroup", "group"]:
         await message.answer(f"Id вашого чату: <code>{message.chat.id}</code>", parse_mode="html")
 
+
+@router_start.message(Command("help"))
+async def help_cmd(message: Message):
+    await message.answer("‼️ Увага ‼️\n\nЗа будь-яку інфорацію яку надіслав бот несе відповідальність власник чату, якщо це не реклама!")
+

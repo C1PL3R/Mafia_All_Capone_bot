@@ -1,4 +1,4 @@
-import asyncio, random
+import asyncio, random, html
 from aiogram import Bot, Router, F
 from aiogram.filters import Command, CommandStart
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, FSInputFile
@@ -40,12 +40,16 @@ class PlayCommand:
         self.list_of_patient = []
         self.list_of_candidates = []
 
+        self.question_and_two_answers = []
+
         self.victim_id = 0
         self.patient_id = 0
 
         self.victim_text = ""
 
         self.is_last_message = False
+        self.message_for_civilian = None
+        self.is_killed = 0
 
 
     async def night_function(self, message: Message, bot: Bot):
@@ -78,13 +82,22 @@ class PlayCommand:
 
 
             for id in self.membersList:
-                roles = [self.name_of_doctor, self.name_of_civilian, self.name_of_all_capone]
-                randomRole = random.choice(roles)
+                cursor.execute("UPDATE users SET killed = %s WHERE id = %s", (0, id,))
+                conn.commit()
 
+                cursor.execute("UPDATE users SET cured = %s WHERE id = %s", (0, id,))
+                conn.commit()
+
+                roles = [self.name_of_doctor, self.name_of_civilian, self.name_of_all_capone]
+                # roles = [self.name_of_civilian]
+                randomRole = random.choice(roles)
+                
                 cursor.execute("UPDATE users SET role = %s WHERE id = %s", (randomRole, id))
                 conn.commit()
 
-                if randomRole != self.name_of_civilian:
+                print(randomRole)
+
+                if randomRole in [self.name_of_all_capone, self.name_of_doctor]:
                     roles.remove(randomRole)
 
                 cursor.execute("SELECT role FROM users WHERE id = %s", (id,))
@@ -92,16 +105,16 @@ class PlayCommand:
 
                 if role == self.name_of_all_capone:
                     self.all_capone_id = int(id)
-                    await bot.send_message(chat_id=self.all_capone_id, text=self.description_of_all_capone)
+                    await bot.send_message(chat_id=self.all_capone_id, text=self.description_of_all_capone, message_effect_id="5159385139981059251")
                     await self.all_capone(message, bot)
                     
                 elif role == self.name_of_civilian:
-                    await bot.send_message(chat_id=id, text=self.description_of_civilian)
+                    await bot.send_message(chat_id=id, text=self.description_of_civilian, message_effect_id="5159385139981059251")
                     self.civilian_ids.append(id)
                     await self.civilian(message, bot)
                     
                 elif role == self.name_of_doctor:
-                    await bot.send_message(chat_id=id, text=self.description_of_doctor)
+                    await bot.send_message(chat_id=id, text=self.description_of_doctor, message_effect_id="5159385139981059251")
                     self.doctor_id = id
                     await self.doctor(message, bot)
         else:
@@ -119,7 +132,6 @@ class PlayCommand:
             await message.answer("Увага! Помилка, перезапустіть гру!")
 
         for id in list_of_id:
-            print(id)
             cursor.execute("SELECT cured FROM users WHERE id = %s", (id,))
             cured = cursor.fetchone()[0]
             cursor.execute("SELECT killed FROM users WHERE id = %s", (id,))
@@ -135,6 +147,7 @@ class PlayCommand:
 
                 self.is_killed = 0
 
+
             elif killed == 1 and cured == 0 or killed == 1:
                 cursor.execute("UPDATE users SET cured = %s WHERE id = %s", (0, id,))
                 conn.commit()
@@ -142,9 +155,24 @@ class PlayCommand:
                 conn.commit()
 
                 self.membersList.remove(id)
-                self.membersNames.remove(id)
-                self.list_of_patient.remove(id)
-                self.list_of_victim.remove(id)
+                for member in self.membersNames:
+                        if member[0] == id:
+                            self.membersNames.remove(member)
+                            break                
+                
+                if id in self.list_of_patient:
+                    self.list_of_patient.remove(id)
+                
+                if id in self.list_of_victim:
+                    self.list_of_victim.remove(id)
+                
+                if id in self.civilian_ids:
+                    self.civilian_ids.remove(id)
+
+                cursor.execute(f"SELECT tg_name FROM users WHERE id = %s", (self.victim_id,))
+                name = cursor.fetchone()[0]
+
+                self.victim_text = f"{self.name_of_all_capone} {name}"
 
                 await bot.send_message(chat_id=id, text="Тебе вбили! Напиши своє останнє повідолмення!")
                 self.is_last_message = True
@@ -160,10 +188,10 @@ class PlayCommand:
             
         if self.is_killed == 1:
             await message.answer(f"Жахливою трагедією. Цієї ночі безцінний {self.victim_text} був жорстоко вбитий. Сорока на хвості принесла звістку, що в нього в гостях був Аль Капоне.")
-        else:
+        elif self.is_killed == 0:
             message.answer("Ніч минула без жертв!")
 
-        players_text = "\n".join([f"{i+1}. {name}" for i, name in enumerate(self.membersNames)])
+        players_text = "\n".join([f"{i+1}. {name[1]}" for i, name in enumerate(self.membersNames)])
 
         await message.answer(f'Список гравців:\n{players_text}\n\nКількість гравців: {len(self.membersList)}\n\n<b>До голосування лишається 45 секунд!</b>', parse_mode="html")
 
@@ -181,23 +209,33 @@ class PlayCommand:
             list_of_cadidates_buttons.button(text=candidate_name, callback_data=f"{id}_candidate")
             list_of_cadidates_buttons.adjust(1)
 
-            self.list_of_candidates.append(id)
+            self.list_of_candidates.append((id, 0))
             
         for id in self.membersList:
             self.message_list_of_candidates = await bot.send_message(chat_id=id, text="Обери за кого ти проголосуєш:", reply_markup=list_of_cadidates_buttons.as_markup())
 
-        for id in self.list_of_candidates:
-            self.router_play.callback_query.register(self.chosen_candidate_def(candidate_name), F.data == f"{id}_candidate")
+        for id, voites in self.list_of_candidates:
+            self.router_play.callback_query.register(self.chosen_candidate_def(candidate_id=id), F.data == f"{id}_candidate")
 
 
-    async def chosen_candidate_def(self, candidate_name):
+    def chosen_candidate_def(self, candidate_id):
         async def handler(callback: CallbackQuery, bot: Bot):
-            await self.message_list_of_candidates.edit_text(f"Обери за кого ти проголосуєш:\nТи вибрав: {candidate_name}")
+            mess = self.message_list_of_candidates
+
+            cursor.execute(f"SELECT tg_name FROM users WHERE id = %s", (candidate_id,))
+            candidate_name = cursor.fetchone()[0]
+
+            await bot.edit_message_text(chat_id=callback.from_user.id, message_id=mess.message_id, text=f"Обери за кого ти проголосуєш:\nТи вибрав: {candidate_name}")
 
             cursor.execute("SELECT tg_name FROM users WHERE id = %s", (callback.from_user.id,))
             member_name = cursor.fetchone()[0]
             await bot.send_message(chat_id=self.chat_id, text=f"{member_name} проголосував за {candidate_name}")
             
+            for i, (id, votes) in enumerate(self.list_of_candidates):
+                if id == self.list_of_candidates[i][0]:
+                    self.list_of_candidates[i][1] + 1
+                    print(self.list_of_candidates[i])
+
         return handler
 
 
@@ -211,7 +249,9 @@ class PlayCommand:
 
 
     async def last_message(self, message: Message, bot: Bot):
-        await bot.send_message(chat_id=self.chat_id, text=f"Останнє повілмення вбитого:\n\n{message.text}")
+        await bot.send_message(chat_id=self.victim_id, text="Очікуй на нову гру")
+
+        await bot.send_message(chat_id=self.chat_id, text=f"Останнє повідомлення вбитого:\n\n{message.text}")
         self.is_last_message = False
 
 
@@ -238,38 +278,45 @@ class PlayCommand:
         async def handler(callback: CallbackQuery, bot: Bot):
             cursor.execute(f"SELECT tg_name FROM users WHERE id = %s", (id,))
             member_name = cursor.fetchone()[0]
-            self.choose_who_you_will_kill.edit_text(text=f"Обери кого тої ночі не стане:\nТи обрав:{member_name}")
+
+            await bot.edit_message_text(chat_id=self.all_capone_id, 
+                                        message_id=self.choose_who_you_will_kill.message_id, 
+                                        text=f"Обери кого тої ночі не стане:\nТи обрав: {member_name}")
 
             await bot.send_message(chat_id=self.chat_id, text="Аль Капоне вибрав жертву")  
 
             cursor.execute("UPDATE users SET killed = %s WHERE id = %s", (1, id,))
             conn.commit()
+
             self.victim_id = id
             
         return handler
 
 
     async def civilian(self, message: Message, bot: Bot):
+        print(self.civilian_ids)
         for id in self.civilian_ids:
-            self.list = [("Чи любиш ти пити каву зранку?", "Так", "Ні"), ("Чи вмієш ти готувати яєчню?", "Так", "Ні"), ("Ти віддаєш перевагу перегляду фільмів вдома, чи кінотеатрі?", "Вдома", "В кінотеатрі"),
+            self.question_and_two_answers = [("Чи любиш ти пити каву зранку?", "Так", "Ні"), ("Чи вмієш ти готувати яєчню?", "Так", "Ні"), ("Ти віддаєш перевагу перегляду фільмів вдома, чи кінотеатрі?", "Вдома", "В кінотеатрі"),
                 ("Ти полюбляєш вечірні прогулянки?", "Так", "Ні"), ("Ти за паперові чи електронні книги?", "Паперові", "Електронні"), ("Ти слухаєш подкасти?", "Так", "Ні"), ("Ти маєш улюблену музичну групу, чи виконавців?", "Так", "Ні"),
                 ("Чи часто ти відвідуєш музеї/виставки?", "Так", "Ні"), ("У тебе є домашні улюбленці?", "Так", "Ні"), ("Любиш подорожі на велосипеді?", "Так", "Ні")]
             
-            self.list_question = random.choice(self.list)
+            self.list_question = random.choice(self.question_and_two_answers)
 
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=self.list_question[1], callback_data="answer_1"), InlineKeyboardButton(text=self.list_question[2], callback_data="answer_2")]
             ])
         
-            self.mess = await bot.send_message(chat_id=id, text=f"{self.list_question[0]}", reply_markup=keyboard)
+            self.message_for_civilian = await bot.send_message(chat_id=id, text=f"{self.list_question[0]}", reply_markup=keyboard)
 
 
-    async def yes_btn(self, callback: CallbackQuery):
-        await self.mess.edit_text(text=f"{self.list_question[0]}\nТи обрав: {self.list_question[1]}")
+    async def yes_btn(self, callback: CallbackQuery, bot: Bot):
+        message = self.message_for_civilian
+        await bot.edit_message_text(chat_id=callback.from_user.id, message_id=message.message_id, text=f"{self.list_question[0]}\nТи обрав: {self.list_question[1]}")
 
 
-    async def no_btn(self, callback: CallbackQuery):
-        await self.mess.edit_text(text=f"{self.list_question[0]}\nТи обрав: {self.list_question[2]}")
+    async def no_btn(self, callback: CallbackQuery, bot: Bot):
+        message = self.message_for_civilian
+        await bot.edit_message_text(chat_id=callback.from_user.id, message_id=message.message_id, text=f"{self.list_question[0]}\nТи обрав: {self.list_question[2]}")
 
 
     async def doctor(self, message: Message, bot: Bot):
@@ -296,7 +343,10 @@ class PlayCommand:
         async def handler(callback: CallbackQuery, bot: Bot):
             cursor.execute(f"SELECT tg_name FROM users WHERE id = %s", (id,))
             member_name = cursor.fetchone()[0]
-            self.choose_who_you_will_cured.edit_text(text=f"Обери кого ти спасеш:\nТи обрав:{member_name}")
+
+            await bot.edit_message_text(chat_id=self.doctor_id, 
+                                        message_id=self.choose_who_you_will_cured.message_id, 
+                                        text=f"Обери кого ти спасеш:\nТи обрав: {member_name}")
 
             await bot.send_message(chat_id=self.chat_id, text="Лікар вибрав пацієнта")
 
@@ -358,7 +408,6 @@ class PlayCommand:
         else:
             await message.answer("Ти приєднався до гри!")
             self.membersList.append(message.from_user.id)
-            self.membersNames.append(message.from_user.mention_html())
 
             await add_user_to_db(message=message)
             
@@ -368,7 +417,16 @@ class PlayCommand:
                 [InlineKeyboardButton(text="Приєднатися до гри!", url=link)]
             ])
 
-            await self.messageOfRegistration.edit_text(text=f"Набір до гри!\nГравці:\n<b>{', '.join(self.membersNames)}</b>\n\nКількість гравців: {len(self.membersList)}\n\nЧас: {self.gameTime}с.\n\nНабір до гри триває 3 хвилини.", reply_markup=keyboard, parse_mode="html")
+            name = f'<a href="tg://user?id={message.from_user.id}">{html.escape(message.from_user.first_name)}</a>'
+            self.membersNames.append((message.from_user.id, name))
+
+            members_names = ', '.join([name for _, name in self.membersNames])
+
+            await self.messageOfRegistration.edit_text(
+                text=f"Набір до гри!\nГравці:\n<b>{members_names}</b>\n\nКількість гравців: {len(self.membersNames)}\n\nЧас: {self.gameTime}с.\n\nНабір до гри триває 3 хвилини.",
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
 
 
     async def leave_game_cmd(self, message: Message, bot: Bot):

@@ -20,6 +20,7 @@ class TelegramBot:
         self.dp.include_routers(self.play_command.router_play, router_start, router_construct_event,router_pay )
         self.command_list = [
             BotCommand(command="start", description="Запуск бота 🤖"),
+            BotCommand(command="help", description="Допомога 🆘"),
             BotCommand(command="play", description="Почати гру 🎮"),
             BotCommand(command="buy", description="Купити Підписку"),
             BotCommand(command="leave_game", description="Покинути гру"),

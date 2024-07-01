@@ -1,6 +1,6 @@
 from aiogram import Bot, Router, F
 from aiogram.filters import Command
-from aiogram.types import Message, LabeledPrice, PreCheckoutQuery
+from aiogram.types import Message, LabeledPrice, PreCheckoutQuery, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from database.database import *
 from datetime import datetime, timedelta
 
@@ -48,13 +48,35 @@ router_pay = Router()
 
 @router_pay.message(Command("buy"))
 async def order(message: Message):
-    await message.answer_invoice(
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Оплатити 1 зірочкою", callback_data="one_star")],
+        [InlineKeyboardButton(text="Оплатити 2 зірочки", callback_data="two_stars")]
+    ])
+
+    await message.answer(text="Вибери як хочеш оплатити", reply_markup=keyboard)
+
+@router_pay.callback_query(F.data == "one_star")
+async def one_star(callback: CallbackQuery):
+    await callback.message.answer_invoice(
         title="Оплата Зірочками Від Телеграм",
-        description="Оплати 1 зірочкою",
+        description="Оплати 1 зірочками",
         prices=[LabeledPrice(label="XTR", amount=1)],
         provider_token="",
         currency="XTR",
-        payload="Pay"
+        payload="Pay",
+        protect_content=True
+    )
+
+@router_pay.callback_query(F.data == "two_stars")
+async def one_star(callback: CallbackQuery):
+    await callback.message.answer_invoice(
+        title="Оплата Зірочками Від Телеграм",
+        description="Оплати 2 зірочками",
+        prices=[LabeledPrice(label="XTR", amount=2)],
+        provider_token="",
+        currency="XTR",
+        payload="Pay",
+        protect_content=True
     )
 
 @router_pay.pre_checkout_query()
@@ -64,3 +86,7 @@ async def pre_checkout_handler(pre_checkout: PreCheckoutQuery):
 @router_pay.message(F.successful_payment)
 async def success_donate_handler(message: Message):
     await message.answer("Оплата пройшла успішно!")
+
+@router_pay.message(Command("paysupport"))
+async def pay_support_handler(message: Message):  
+    await message.answer(text="Оплата не повертається!")
